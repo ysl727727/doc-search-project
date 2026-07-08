@@ -3,6 +3,7 @@ import numpy as np
 import os
 import sys
 import re
+from sklearn.feature_extraction.text import TfidfVectorizer
 DATA_PATH = "data/tech_docs.csv"
 
 def load_data(file_path):
@@ -31,10 +32,59 @@ def cosine_similarity_numpy(a,b):
     
     return dot_product / (norm_a * norm_b)
 
+def keyword_search(query, df, top_k=3):
+    query = preprocess(query)
+    query_words = set(query.split())
+
+    scores = []
+
+    for content in df["content_clean"]:
+        doc_words = set(content.split())
+        score = len(query_words & doc_words)
+        scores.append(score)
+
+    df["score"] = scores
+
+    result = df.sort_values("score", ascending=False)
+    result = result.head(top_k)
+
+    return result[["doc_id", "title", "category", "score"]]
+
+def build_tfidf(df):
+    vectorizer = TfidfVectorizer(
+        max_features=5000,
+        min_df=2,
+        stop_words="english"
+    )
+    tfidf_matrix = vectorizer.fit_transform(df["content_clean"])
+
+    rows, cols = tfidf_matrix.shape
+
+    print(f"TF-IDF 행렬 크기: ({rows}, {cols}) | 사용된 단어 수:{cols}")
+
+    return tfidf_matrix, vectorizer
+
+def tfidf_search(query, df, tfidf_matrix, vectorizer, top_k=3):
+    query = preprocess(query)
+    query_vector = vectorizer.transform([query])
+    query_vector = query_vector.toarray()[0]
+
+    similarities = []
+
+    for i in range(len(df)):
+        doc_vector = tfidf_matrix[i].toarray()[0]
+        similarity = cosine_similarity_numpy(query_vector, doc_vector)
+        similarities.append(similarity)
+        top_indices = np.array(similarities).argsort()[::1][:top_k]
+        
+        result = df.iloc[top_indices].copy()
+        result["similarity"] = np.array(similarities)[top_indices]
+
+        return result[["doc_id", "title", "category", "similarity"]]
+    
 
 
-
-
+    
 
 
 
@@ -45,6 +95,8 @@ def main():
     df["content_clean"] = df["content"].apply(preprocess)
     print("전처리 완료 content_clean 칼럼 생성")
     # 전처리 확인방법 : print(df[["content", "content_clean"]].head(3)) 
+
+    # 기능3 keyword_search main에 넣어야함 
 
  
 
