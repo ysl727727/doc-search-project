@@ -60,7 +60,7 @@ def build_tfidf(df):
 
     rows, cols = tfidf_matrix.shape
 
-    print(f"TF-IDF 행렬 크기: ({rows}, {cols}) | 사용된 단어 수:{cols}")
+    print(f"TF-IDF 행렬 크기: ({rows}, {cols}) | 사용된 단어 수: {cols}")
 
     return tfidf_matrix, vectorizer
 
@@ -75,30 +75,36 @@ def tfidf_search(query, df, tfidf_matrix, vectorizer, top_k=3):
         doc_vector = tfidf_matrix[i].toarray()[0]
         similarity = cosine_similarity_numpy(query_vector, doc_vector)
         similarities.append(similarity)
-        top_indices = np.array(similarities).argsort()[::1][:top_k]
-        
-        result = df.iloc[top_indices].copy()
-        result["similarity"] = np.array(similarities)[top_indices]
+       
+    top_indices = np.array(similarities).argsort()[::-1][:top_k]
+    result = df.iloc[top_indices].copy()
+    result["similarity"] = np.array(similarities)[top_indices].round(4)
 
-        return result[["doc_id", "title", "category", "similarity"]]
+    return result[["doc_id", "title", "category", "similarity"]]
     
-
-
-    
-
-
 
 def main():
     df = load_data(DATA_PATH)
 
     df = df.dropna(subset=["content"])
     df["content_clean"] = df["content"].apply(preprocess)
-    print("전처리 완료 content_clean 칼럼 생성")
+    print("전처리 완료: content_clean 컬럼 생성")
     # 전처리 확인방법 : print(df[["content", "content_clean"]].head(3)) 
+   
+    tfidf_matrix, vectorizer = build_tfidf(df) 
+    
+    query = "how does gradient descent work in machine learning"
+    
+    print(f"\n질문: {query}")
 
-    # 기능3 keyword_search main에 넣어야함 
+    print("\n=== Keyword Baseline ===")
+    print(keyword_search(query, df))
+    
+    print("\n=== TF-IDF Search ===")
+    print(tfidf_search(query, df, tfidf_matrix, vectorizer))
 
- 
+    # Baseline은 단어 개수만 비교하므로 관련 없는 문서가 포함될 수 있다.
+    # TF-IDF는 중요한 단어에 가중치를 부여하여 더 관련성 높은 문서를 찾는다.
 
 if __name__ == "__main__":
     main()
