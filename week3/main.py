@@ -64,6 +64,7 @@ def build_tfidf(df):
 
     return tfidf_matrix, vectorizer
 
+
 def tfidf_search(query, df, tfidf_matrix, vectorizer, top_k=3):
     query = preprocess(query)
     query_vector = vectorizer.transform([query])
@@ -84,51 +85,51 @@ def tfidf_search(query, df, tfidf_matrix, vectorizer, top_k=3):
     
 eval_set = [
     {
-        "query": "python list comprehension",
+        "query": "How can I create a list in one line using Python?",
         "relevant_doc_ids": ["D001"]
     },
     {
-        "query": "python decorators explained",
+        "query": "How can I add extra functionality to a Python function?",
         "relevant_doc_ids": ["D010"]
     },
     {
-        "query": "git merge conflict",
+        "query": "How do I fix merge conflicts in Git?",
         "relevant_doc_ids": ["D018"]
     },
     {
-        "query": "git stash changes",
+        "query": "How can I temporarily save my changes in Git?",
         "relevant_doc_ids": ["D019"]
     },
     {
-        "query": "what is gradient descent",
+        "query": "How does gradient descent optimize a machine learning model?",
         "relevant_doc_ids": ["D023"]
     },
     {
-        "query": "loss function machine learning",
+        "query": "What is the purpose of a loss function in machine learning?",
         "relevant_doc_ids": ["D024"]
     },
     {
-        "query": "backpropagation algorithm",
+        "query": "How are gradients calculated during neural network training?",
         "relevant_doc_ids": ["D030"]
     },
     {
-        "query": "neural networks introduction",
+        "query": "What is a neural network and how does it work?",
         "relevant_doc_ids": ["D031"]
     },
     {
-        "query": "numpy matrix operations",
+        "query": "How do I multiply matrices using NumPy?",
         "relevant_doc_ids": ["D035"]
     },
     {
-        "query": "pandas merge dataframe",
+        "query": "How can I combine two DataFrames in pandas?",
         "relevant_doc_ids": ["D045"]
     },
     {
-        "query": "python type hints",
+        "query": "Why should I use type hints in Python?",
         "relevant_doc_ids": ["D052"]
     },
     {
-        "query": "convolutional neural networks",
+        "query": "What are convolutional neural networks used for?",
         "relevant_doc_ids": ["D060"]
     }
 ]
@@ -149,7 +150,7 @@ def run_evaluation(eval_set, search_func, k):
     mrr_scores = []
     for item in eval_set:
         query =  item["query"]
-        relevant = item["relevant_doc_idc"]
+        relevant = item["relevant_doc_ids"]
         result = search_func(query)
         result_ids = result["doc_id"].tolist()
         
@@ -171,10 +172,38 @@ def run_evaluation(eval_set, search_func, k):
     mrr_mean = np.mean(mrr_scores)
 
     return{
-        "precision@3": precision_mean,
+        "Precision@3": precision_mean,
         "MRR": mrr_mean
     }
 
+def analyze_failures(eval_set, search_func, k):
+    fail_count = 0
+
+    for item in eval_set:
+        query = item["query"]
+        relevant = item["relevant_doc_ids"]
+
+        result = search_func(query)
+        result_ids = result["doc_id"].tolist()
+        
+        rr = reciprocal_rank(
+            result_ids,
+            relevant
+        )
+
+        if rr == 0.0:
+            fail_count += 1
+            
+            print(f"질문: {query}")
+
+            print(f"정답 doc_id : {relevant}")
+
+            print(f"검색 결과 : {result_ids}")
+
+            print()       
+
+    if fail_count == 0:
+        print("실패 케이스가 없습니다.")
 
 def main():
     df = load_data(DATA_PATH)
@@ -186,23 +215,49 @@ def main():
 
     print(f"\n평가셋 크기: {len(eval_set)}개 질문") # 기능1 확인
     
-    result = precision_at_k(
-        ["D001", "D012", "D059"],
-        ["D001", "D059"],
+    keyword = lambda q: keyword_search(q,df)
+
+    tfidf = lambda q: tfidf_search(
+        q,
+        df,
+        tfidf_matrix,
+        vectorizer
+    )
+
+    keyword_result = run_evaluation(
+        eval_set,
+        keyword,
         3
     )
-    print(f"{result:.3f}")
 
+    tfidf_result = run_evaluation(
+        eval_set,
+        tfidf,
+        3
+    )
 
-    query = "how does gradient descent work in machine learning"
-    
-    print(f"\n질문: {query}")
+    print("\n=== 성능 비교 ===")
+    print("                  Precision@3     MRR")
 
-    print("\n=== Keyword Baseline ===")
-    print(keyword_search(query, df))
-    
-    print("\n=== TF-IDF Search ===")
-    print(tfidf_search(query, df, tfidf_matrix, vectorizer))
+    print(
+        f"Keyword Baseline      "
+        f"{keyword_result['Precision@3']:.4f}     "
+        f"{keyword_result['MRR']:.4f}"
+    )
+
+    print(
+        f"TF-IDF                "
+        f"{tfidf_result['Precision@3']:.4f}     "
+        f"{tfidf_result['MRR']:.4f}"
+    )
+
+    print("\n=== 실패 케이스 (Top-3 안에 정답 없음) ===")
+
+    analyze_failures(
+        eval_set,
+        tfidf,
+        3
+    )
 
     # Baseline은 단어 개수만 비교하므로 관련 없는 문서가 포함될 수 있다.
     # TF-IDF는 중요한 단어에 가중치를 부여하여 더 관련성 높은 문서를 찾는다.
