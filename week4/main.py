@@ -50,13 +50,13 @@ def keyword_search(query, df, top_k=3):
 
     return result[["doc_id", "title", "category", "score"]]
 
-def build_tfidf(df):
+def build_tfidf(df, column_name):
     vectorizer = TfidfVectorizer(
         max_features=5000,
         min_df=2,
         stop_words="english"
     )
-    tfidf_matrix = vectorizer.fit_transform(df["content_clean"])
+    tfidf_matrix = vectorizer.fit_transform(df[column_name])
 
     rows, cols = tfidf_matrix.shape
 
@@ -178,7 +178,7 @@ def run_evaluation(eval_set, search_func, k):
 
 def analyze_failures(eval_set, search_func, k):
     fail_count = 0
-    
+    failures = []
     for item in eval_set:
         query = item["query"]
         relevant = item["relevant_doc_ids"]
@@ -193,24 +193,51 @@ def analyze_failures(eval_set, search_func, k):
 
         if rr == 0.0:
             fail_count += 1
-
-            print(f"질문: {query}")
-            print(f"정답 doc_id : {relevant}")
-            print(f"검색 결과 : {result_ids}")
-            print()       
+            
+            failures.append(
+                (query, relevant, result_ids)
+            )      
 
     if fail_count == 0:
         print("실패 케이스가 없습니다.")
+    
+    else:
+        print(f"실패 케이스 : {fail_count}개\n")
 
+        for query, relevant, result_ids in failures:
+            
+            print(f"질문: {query}")
+            print(f"정답 doc_id : {relevant}")
+            print(f"검색 결과 : {result_ids}")
+            print()
+                  
 def main():
     df = load_data(DATA_PATH)
     df["content_clean"] = df["content"].apply(preprocess)
-    print("전처리 완료: content_clean 컬럼 생성")
-    # 전처리 확인방법 : print(df[["content", "content_clean"]].head(3)) 
-   
-    tfidf_matrix, vectorizer = build_tfidf(df) 
+    df["title_clean"] = df["title"].apply(preprocess)
 
-    print(f"\n평가셋 크기: {len(eval_set)}개 질문") # 기능1 확인
+    df["content_weighted"] = (
+        df["title_clean"] + " "
+    ) * 3 + df["content_clean"]    
+    
+    # print("전처리 완료: content_clean 컬럼 생성") # 전처리 확인용
+
+    print("\n=== 기본 TF-IDF ===")
+    tfidf_matrix, vectorizer = build_tfidf(df,"content_clean")
+
+    print("\n=== Weighted TF-IDF ===")
+    weighted_matrix, weighted_vectorizer = build_tfidf(df,"content_weighted")
+
+    print("\n=== 예시 검색: git merge conflicts ===")
+    example = tfidf_search(
+        "git merge conflicts",
+        df,
+        weighted_matrix,
+        weighted_vectorizer
+    )
+    print(example)
+
+    # print(f"\n평가셋 크기: {len(eval_set)}개 질문") # 기능1 확인용
     
     keyword = lambda q: keyword_search(q,df)
 
@@ -219,6 +246,13 @@ def main():
         df,
         tfidf_matrix,
         vectorizer
+    )
+
+    weighted_tfidf = lambda q: tfidf_search(
+        q,
+        df,
+        weighted_matrix,
+        weighted_vectorizer
     )
 
     keyword_result = run_evaluation(
@@ -230,6 +264,12 @@ def main():
     tfidf_result = run_evaluation(
         eval_set,
         tfidf,
+        3
+    )
+
+    weighted_result = run_evaluation(
+        eval_set,
+        weighted_tfidf,
         3
     )
 
@@ -248,11 +288,17 @@ def main():
         f"{tfidf_result['MRR']:.4f}"
     )
 
-    print("\n=== 실패 케이스 (Top-3 안에 정답 없음) ===")
+    print(
+        f"Weighted TF-IDF       "
+        f"{weighted_result['Precision@3']:.4f}     "
+        f"{weighted_result['MRR']:.4f}"
+    )
+
+    print("\n=== 실패 케이스 (Weighted TF-IDF) ===") # Top-3 안에 정답 없음
 
     analyze_failures(
         eval_set,
-        tfidf,
+        weighted_tfidf,
         3
     )
 

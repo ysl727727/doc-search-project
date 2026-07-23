@@ -27,6 +27,14 @@
 * Keyword Baseline과 TF-IDF 검색 성능 비교
 * 검색 실패 케이스 분석
 
+## Week4 기능
+
+* 전체 검색 파이프라인 통합
+* CSV 데이터 로드 → 전처리 → TF-IDF 벡터화 → 검색 → 평가 → 실패 케이스 분석
+* TF-IDF 예시 검색 실행
+* Baseline, TF-IDF 성능 비교
+* (선택) 제목 가중치(Title Weighting)를 적용한 TF-IDF 성능 비교
+
 ## 프로젝트 구조
 
 ```text
@@ -39,6 +47,8 @@ doc-search-project/
 ├── week2/
 │   └── main.py
 ├── week3/
+│   └── main.py
+├── week4/
 │   └── main.py
 └── README.md
 ```
@@ -63,6 +73,12 @@ python week2/main.py
 python week3/main.py
 ```
 
+### Week4
+
+```bash
+python week4/main.py
+```
+
 ## 사용 라이브러리
 
 * pandas
@@ -72,8 +88,6 @@ python week3/main.py
 
 ## 학습 내용
 
-이 프로젝트를 통해 다음 내용을 학습했습니다.
-
 * pandas를 이용한 데이터 처리
 * NumPy를 이용한 벡터 연산
 * 텍스트 전처리
@@ -81,3 +95,5 @@ python week3/main.py
 * 코사인 유사도 계산
 * 정보 검색(Search) 기초
 * Precision@k, MRR을 이용한 검색 성능 평가
+* 검색 파이프라인 통합
+* 제목 가중치를 활용한 검색 성능 개선 실험
